@@ -1,24 +1,48 @@
 #include <stdio.h>
 #include <pcap.h>
 
-void PacketCallback(u_char* args, const struct pcap_pkthdr *header, const u_char *packet)
+struct TCP
 {
-    if (packet[12] == 0x08 && packet[13] == 0x00 &&  // Ethernet header type : IPv4
+    char srcMAC[18];
+    char dstMAC[18];
+    char srcIP[16];
+    char dstIP[16];
+    unsigned short srcPORT;
+    unsigned short dstPORT;
+};
+
+int ConvertByteToTCP(const u_char* packet, struct TCP* tcp)
+{
+    int result = 0;
+    if (packet[12] == 0x08 && packet[13] == 0x00 && // Ethernet header type : IPv4
         packet[23] == 0x06) // IPv4 header protocol : TCP
     {
-        printf("src MAC %02X:%02X:%02X:%02X:%02X:%02X, dst MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
-            packet[6],packet[7],packet[8],packet[9],packet[10],packet[11],packet[12],
+        snprintf(tcp->srcMAC, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
+            packet[6],packet[7],packet[8],packet[9],packet[10],packet[11],packet[12]);
+        snprintf(tcp->dstMAC, 18, "%02X:%02X:%02X:%02X:%02X:%02X",
             packet[0],packet[1],packet[2],packet[3],packet[4],packet[5]);
 
-        printf("src IP %d.%d.%d.%d, dst IP %d.%d.%d.%d\n",
-            packet[26], packet[27], packet[28], packet[29],
-            packet[30], packet[31], packet[32], packet[33]);
+        snprintf(tcp->srcIP, 16, "%d.%d.%d.%d", packet[26], packet[27], packet[28], packet[29]);
+        snprintf(tcp->dstIP, 16, "%d.%d.%d.%d", packet[30], packet[31], packet[32], packet[33]);
 
-        printf("src PORT %d, dst PORT %d\n",
-            (packet[34] << 8) + packet[35],
-            (packet[36] << 8) + packet[37]);
+        tcp->srcPORT = ntohs(*((unsigned short*)(&packet[34])));
+        tcp->dstPORT = ntohs(*((unsigned short*)(&packet[36])));
 
-        puts("");        
+        result = 1;
+    }
+
+    return result;
+}
+
+void PacketCallback(u_char* args, const struct pcap_pkthdr *header, const u_char *packet)
+{
+    struct TCP tcp;
+    if (ConvertByteToTCP(packet, &tcp))
+    {
+        printf("src MAC  %s, dst MAC  %s\n", tcp.srcMAC, tcp.dstMAC);
+        printf("src IP   %s, dst IP   %s\n", tcp.srcIP, tcp.dstIP);
+        printf("src PORT %d, dst PORT %d\n", tcp.srcPORT, tcp.dstPORT);
+        puts("");
     }
 }
 
