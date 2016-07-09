@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <pcap.h>
 
-struct TCP
+typedef enum {PROT_UNKNOWN, PROT_TCP, PROT_UDP, } Protocol;
+
+struct Packet
 {
     char srcMAC[18];
     char dstMAC[18];
@@ -11,9 +13,9 @@ struct TCP
     unsigned short dstPORT;
 };
 
-int ConvertByteToTCP(const u_char* packet, struct TCP* tcp)
+int ConvertByteToTCP(const u_char* packet, struct Packet* tcp)
 {
-    int result = 0;
+    Protocol result = PROT_UNKNOWN;
     if (packet[12] == 0x08 && packet[13] == 0x00 && // Ethernet header type : IPv4
         packet[23] == 0x06) // IPv4 header protocol : TCP
     {
@@ -28,7 +30,7 @@ int ConvertByteToTCP(const u_char* packet, struct TCP* tcp)
         tcp->srcPORT = ntohs(*((unsigned short*)(&packet[34])));
         tcp->dstPORT = ntohs(*((unsigned short*)(&packet[36])));
 
-        result = 1;
+        result = PROT_TCP;
     }
 
     return result;
@@ -36,8 +38,8 @@ int ConvertByteToTCP(const u_char* packet, struct TCP* tcp)
 
 void PacketCallback(u_char* args, const struct pcap_pkthdr *header, const u_char *packet)
 {
-    struct TCP tcp;
-    if (ConvertByteToTCP(packet, &tcp))
+    struct Packet tcp;
+    if (ConvertByteToTCP(packet, &tcp) == PROT_TCP)
     {
         printf("src MAC  %s, dst MAC  %s\n", tcp.srcMAC, tcp.dstMAC);
         printf("src IP   %s, dst IP   %s\n", tcp.srcIP, tcp.dstIP);
