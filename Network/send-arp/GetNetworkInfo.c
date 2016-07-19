@@ -40,34 +40,30 @@ int GetLocalMacAddress(/*out*/ BYTE* mac)
 {
     int result = 0;
     FILE* fp;
-    char command[50] = "ifconfig > ifconfig_result";
     char* line;
     size_t len;
 
-    if (system(command) == 0)
+    if (fp = popen("ifconfig", "r"))
     {
-        if (fp = fopen("ifconfig_result", "r"))
+        while (getline(&line, &len, fp) != -1)
         {
-            while (getline(&line, &len, fp) != -1)
+            // need to check connected ethernet
+            if (strstr(line, "ether"))
             {
-                // need to check connected ethernet
-                if (strstr(line, "ether"))
-                {
-                    char* token;
-                    token = strtok(line, " ");
-                    token = strtok(NULL, " ");
-                    mac[0] = ConvertStrToByte(token[0], token[1]);
-                    mac[1] = ConvertStrToByte(token[3], token[4]);
-                    mac[2] = ConvertStrToByte(token[6], token[7]);
-                    mac[3] = ConvertStrToByte(token[9], token[10]);
-                    mac[4] = ConvertStrToByte(token[12], token[13]);
-                    mac[5] = ConvertStrToByte(token[15], token[16]);
-                    result = 1;
-                    remove("ifconfig_result");
-                    break;
-                }
+                char* token;
+                token = strtok(line, " ");
+                token = strtok(NULL, " ");
+                mac[0] = ConvertStrToByte(token[0], token[1]);
+                mac[1] = ConvertStrToByte(token[3], token[4]);
+                mac[2] = ConvertStrToByte(token[6], token[7]);
+                mac[3] = ConvertStrToByte(token[9], token[10]);
+                mac[4] = ConvertStrToByte(token[12], token[13]);
+                mac[5] = ConvertStrToByte(token[15], token[16]);
+                result = 1;
+                break;
             }
         }
+        free(line);
     }
 
     return result;
@@ -81,29 +77,25 @@ int GetMacAddress(/*in*/ char* ipStr, /*out*/ BYTE* mac)
     char data[200];
 
     strcat(command, ipStr);
-    strcat(command, " -c 1 > arping_result");
+    strcat(command, " -c 1");
 
-    if (system(command) == 0)
+    fp = popen(command, "r");
+    if (fp && fread(data, 200, 1, fp) > 0 && !strstr(data, "Timeout"))
     {
-        fp = fopen("arping_result", "r");
-        if (fp && fread(data, 200, 1, fp) > 0 && !strstr(data, "Timeout"))
-        {
-            char* token;
-            token = strtok(data, "\n");
-            token = strtok(NULL, "\n");
-            token = strtok(token, " ");
-            token = strtok(NULL, " ");
-            token = strtok(NULL, " ");
-            token = strtok(NULL, " ");
-            mac[0] = ConvertStrToByte(token[0], token[1]);
-            mac[1] = ConvertStrToByte(token[3], token[4]);
-            mac[2] = ConvertStrToByte(token[6], token[7]);
-            mac[3] = ConvertStrToByte(token[9], token[10]);
-            mac[4] = ConvertStrToByte(token[12], token[13]);
-            mac[5] = ConvertStrToByte(token[15], token[16]);
-            remove("arping_result");
-            result = 1;
-        }
+        char* token;
+        token = strtok(data, "\n");
+        token = strtok(NULL, "\n");
+        token = strtok(token, " ");
+        token = strtok(NULL, " ");
+        token = strtok(NULL, " ");
+        token = strtok(NULL, " ");
+        mac[0] = ConvertStrToByte(token[0], token[1]);
+        mac[1] = ConvertStrToByte(token[3], token[4]);
+        mac[2] = ConvertStrToByte(token[6], token[7]);
+        mac[3] = ConvertStrToByte(token[9], token[10]);
+        mac[4] = ConvertStrToByte(token[12], token[13]);
+        mac[5] = ConvertStrToByte(token[15], token[16]);
+        result = 1;
     }
 
     return result;
@@ -117,30 +109,27 @@ int GetGatewayIP(/*out*/ BYTE* ip)
     size_t len = 0;
     char temIP[20];
 
-    if (system("arp -a > arp_table") == 0)
+    if (fp = popen("arp -a", "r"))
     {
-        if (fp = fopen("arp_table", "r"))
+        while (getline(&line, &len, fp) != -1)
         {
-            while (getline(&line, &len, fp) != -1)
+            if (strstr(line, "gateway"))
             {
-                if (strstr(line, "gateway"))
+                int ipStrIdx = 0;
+                for (int i = 9; line[i] != ')'; i++)
                 {
-                    int ipStrIdx = 0;
-                    for (int i = 9; line[i] != ')'; i++)
-                    {
-                        temIP[ipStrIdx++] = line[i];
-                    }
-                    temIP[ipStrIdx] = '\0';
-
-                    if (ConvertAddrToByteIP(temIP, ip))
-                    {
-                        result = 1;
-                    }
-                    break;
+                    temIP[ipStrIdx++] = line[i];
                 }
+                temIP[ipStrIdx] = '\0';
+
+                if (ConvertAddrToByteIP(temIP, ip))
+                {
+                    result = 1;
+                }
+                break;
             }
-            remove("arp_table");
         }
+        free(line);
     }
 
     return result;
