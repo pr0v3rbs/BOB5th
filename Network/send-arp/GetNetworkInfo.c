@@ -9,13 +9,17 @@ BYTE ConvertStrToByte(char c1, char c2)
 
     if ('0' <= c1 && c1 <= '9')
         numHigh = c1 - '0';
-    else
+    else if ('a' <= c1 && c1 <= 'z')
         numHigh = c1 - 'a' + 10;
+    else
+        numHigh = c1 - 'A' + 10;
 
     if ('0' <= c2 && c2 <= '9')
         numLow = c2 - '0';
-    else
+    else if ('a' <= c2 && c2 <= 'z')
         numLow = c2 - 'a' + 10;
+    else
+        numLow = c2 - 'A' + 10;
 
     return (numHigh << 4) + numLow;
 }
@@ -40,30 +44,20 @@ int GetLocalMacAddress(/*out*/ BYTE* mac)
 {
     int result = 0;
     FILE* fp;
-    char* line;
-    size_t len;
+    char macStr[17] = "";
 
-    if (fp = popen("ifconfig", "r"))
+    if (fp = popen("ifconfig eth0 | egrep -io \"([0-9a-fA-F]{2}[:]){5}([0-9a-fA-F]{2})\"", "r"))
     {
-        while (getline(&line, &len, fp) != -1)
+        if (fread(macStr, 17, 1, fp) > 0)
         {
-            // need to check connected ethernet
-            if (strstr(line, "ether"))
-            {
-                char* token;
-                token = strtok(line, " ");
-                token = strtok(NULL, " ");
-                mac[0] = ConvertStrToByte(token[0], token[1]);
-                mac[1] = ConvertStrToByte(token[3], token[4]);
-                mac[2] = ConvertStrToByte(token[6], token[7]);
-                mac[3] = ConvertStrToByte(token[9], token[10]);
-                mac[4] = ConvertStrToByte(token[12], token[13]);
-                mac[5] = ConvertStrToByte(token[15], token[16]);
-                result = 1;
-                break;
-            }
+            mac[0] = ConvertStrToByte(macStr[0], macStr[1]);
+            mac[1] = ConvertStrToByte(macStr[3], macStr[4]);
+            mac[2] = ConvertStrToByte(macStr[6], macStr[7]);
+            mac[3] = ConvertStrToByte(macStr[9], macStr[10]);
+            mac[4] = ConvertStrToByte(macStr[12], macStr[13]);
+            mac[5] = ConvertStrToByte(macStr[15], macStr[16]);
+            result = 1;
         }
-        free(line);
     }
 
     return result;
@@ -73,28 +67,21 @@ int GetMacAddress(/*in*/ char* ipStr, /*out*/ BYTE* mac)
 {
     int result = 0;
     FILE* fp;
-    char command[50] = "arping ";
-    char data[200];
+    char command[100] = "arping -I eth0 ";
+    char data[17];
 
     strcat(command, ipStr);
-    strcat(command, " -c 1");
+    strcat(command, " -c 1 | egrep -io \"([0-9a-fA-F]{2}[:]){5}([0-9a-fA-F]{2})\"");
 
     fp = popen(command, "r");
-    if (fp && fread(data, 200, 1, fp) > 0 && !strstr(data, "Timeout"))
+    if (fp && fread(data, 17, 1, fp) > 0)
     {
-        char* token;
-        token = strtok(data, "\n");
-        token = strtok(NULL, "\n");
-        token = strtok(token, " ");
-        token = strtok(NULL, " ");
-        token = strtok(NULL, " ");
-        token = strtok(NULL, " ");
-        mac[0] = ConvertStrToByte(token[0], token[1]);
-        mac[1] = ConvertStrToByte(token[3], token[4]);
-        mac[2] = ConvertStrToByte(token[6], token[7]);
-        mac[3] = ConvertStrToByte(token[9], token[10]);
-        mac[4] = ConvertStrToByte(token[12], token[13]);
-        mac[5] = ConvertStrToByte(token[15], token[16]);
+        mac[0] = ConvertStrToByte(data[0], data[1]);
+        mac[1] = ConvertStrToByte(data[3], data[4]);
+        mac[2] = ConvertStrToByte(data[6], data[7]);
+        mac[3] = ConvertStrToByte(data[9], data[10]);
+        mac[4] = ConvertStrToByte(data[12], data[13]);
+        mac[5] = ConvertStrToByte(data[15], data[16]);
         result = 1;
     }
 
@@ -107,29 +94,17 @@ int GetGatewayIP(/*out*/ BYTE* ip)
     FILE* fp;
     char* line = NULL;
     size_t len = 0;
-    char temIP[20];
 
-    if (fp = popen("arp -a", "r"))
+    if (fp = popen("route -n|grep \"UG\"|grep -v \"UGH\"|cut -f 10 -d \" \"", "r"))
     {
-        while (getline(&line, &len, fp) != -1)
+        if (getline(&line, &len, fp) != -1)
         {
-            if (strstr(line, "gateway"))
+            if (ConvertAddrToByteIP(line, ip))
             {
-                int ipStrIdx = 0;
-                for (int i = 9; line[i] != ')'; i++)
-                {
-                    temIP[ipStrIdx++] = line[i];
-                }
-                temIP[ipStrIdx] = '\0';
-
-                if (ConvertAddrToByteIP(temIP, ip))
-                {
-                    result = 1;
-                }
-                break;
+                result = 1;
             }
+            free(line);
         }
-        free(line);
     }
 
     return result;

