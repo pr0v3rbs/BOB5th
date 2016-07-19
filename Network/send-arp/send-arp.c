@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     if (argc != 2)
     {
         printf("usage: send-arp <IP>\n");
-        return 0;
+        exit(-1);
     }
 
     strcpy(ipStr, argv[1]);
@@ -85,7 +85,7 @@ int main(int argc, char** argv)
     if (!ConvertAddrToByteIP(argv[1], victimIP))
     {
         printf("Invalid IP\n");
-        return 0;
+        exit(-1);
     }
 
     if (InitPcap(&handle))
@@ -97,6 +97,7 @@ int main(int argc, char** argv)
         else
         {
             printf("Get local MAC address fail\n");
+            exit(-1);
         }
 
         if (GetGatewayIP(gatewayIP))
@@ -106,6 +107,7 @@ int main(int argc, char** argv)
         else
         {
             printf("Get gateway IP fail\n");
+            exit(-1);
         }
 
         if (GetMacAddress(ipStr, victimMac))
@@ -115,6 +117,7 @@ int main(int argc, char** argv)
         else
         {
             printf("Get victim MAC address fail : Invalid IP address\n");
+            exit(-1);
         }
 
         MakeARPReplyPacket(localMac, victimMac, gatewayIP, victimIP, arpReplyPacket);
